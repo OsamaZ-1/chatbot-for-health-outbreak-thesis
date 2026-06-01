@@ -1,83 +1,102 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @theme {
---font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
---font-display: "Outfit", sans-serif;
---font-mono: "JetBrains Mono", monospace;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
---color-primary: #092f4c;
---color-secondary: #00cada;
---color-surface: #eef0f3;
---color-white: #ffffff;
+  /* Main Colors */
+  --color-bg-dark: #092f4c;
+  --color-accent-cyan: #00cada;
+  --color-accent-light: #eef0f3;
+  --color-white: #ffffff;
 
---color-border: rgba(9, 47, 76, 0.12);
---color-shadow: rgba(9, 47, 76, 0.08);
+  /* Borders (more subtle + professional) */
+  --color-border-cyan: rgba(0, 202, 218, 0.25);
+  --color-border-white: rgba(238, 240, 243, 0.12);
 }
 
 @layer base {
-body {
-@apply bg-[#eef0f3] text-[#092f4c] font-sans antialiased;
-}
+  body {
+    @apply bg-bg-dark text-[#eef0f3] font-sans antialiased selection:bg-accent-cyan/30;
+  }
 }
 
+/* Cards (less neon, more clean glass) */
 .glass-card {
-background: #ffffff;
-border: 1px solid rgba(9, 47, 76, 0.08);
-border-radius: 20px;
-box-shadow: 0 8px 30px rgba(9, 47, 76, 0.08);
+  @apply bg-white/5 backdrop-blur-md border border-border-white rounded-2xl;
 }
 
+/* Navbar (slightly stronger contrast for readability) */
 .glass-nav {
-background: rgba(255,255,255,0.95);
-backdrop-filter: blur(12px);
-border-bottom: 1px solid rgba(9,47,76,0.08);
+  @apply bg-[#092f4c]/90 backdrop-blur-md border-b border-border-cyan;
 }
 
-.primary-btn {
-background: #00cada;
-color: #092f4c;
-font-weight: 600;
+/* Glow (softer, more modern) */
+.neon-glow {
+  box-shadow: 0 0 12px rgba(0, 202, 218, 0.25);
 }
 
-.primary-btn:hover {
-background: #00b8c6;
+.neon-glow-purple {
+  box-shadow: 0 0 12px rgba(238, 240, 243, 0.15);
 }
 
+/* Gradient (cleaner + less harsh than white mix) */
 .text-gradient {
-background: linear-gradient(
-90deg,
-#092f4c 0%,
-#00cada 100%
-);
--webkit-background-clip: text;
--webkit-text-fill-color: transparent;
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-accent-cyan to-[#eef0f3];
 }
 
-.markdown-body h1,
-.markdown-body h2,
+/* Markdown Styles */
+.markdown-body h1 {
+  @apply text-2xl font-bold mb-4 mt-6 text-[#eef0f3];
+}
+
+.markdown-body h2 {
+  @apply text-xl font-bold mb-3 mt-5 text-[#eef0f3];
+}
+
 .markdown-body h3 {
-color: #092f4c;
+  @apply text-lg font-bold mb-2 mt-4 text-[#eef0f3];
 }
 
-.markdown-body p,
-.markdown-body ul,
+.markdown-body p {
+  @apply mb-4 leading-relaxed text-[#eef0f3]/90;
+}
+
+.markdown-body ul {
+  @apply list-disc list-inside mb-4 space-y-1 text-[#eef0f3]/80;
+}
+
 .markdown-body ol {
-color: rgba(9,47,76,0.85);
+  @apply list-decimal list-inside mb-4 space-y-1 text-[#eef0f3]/80;
 }
 
 .markdown-body strong {
-color: #00cada;
+  @apply text-accent-cyan font-semibold;
 }
 
 .markdown-body code {
-background: rgba(0,202,218,0.08);
-color: #092f4c;
+  @apply bg-white/10 px-1.5 py-0.5 rounded font-mono text-xs text-accent-cyan;
 }
 
 .markdown-body pre {
-background: #ffffff;
-border: 1px solid rgba(9,47,76,0.08);
+  @apply bg-[#092f4c]/60 p-4 rounded-xl border border-border-white overflow-x-auto mb-4;
 }
 
 .markdown-body blockquote {
-border-left: 4px solid #00cada;
-color: rgba(9,47,76,0.7);
+  @apply border-l-2 border-accent-cyan/60 pl-4 italic text-[#eef0f3]/70 mb-4;
+}
+
+/* Scrollbar (more subtle, less “glow”) */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-white/10 rounded-full hover:bg-accent-cyan/30;
 }
