@@ -1,6 +1,5 @@
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
 import multer from "multer";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
@@ -54,7 +53,6 @@ University: Lebanese International University.
 * Privacy protections introduced zero practical degradation to health intelligence collection.
 `;
 
-// Middleware to check if user is admin
 const authenticateAdmin = (
   req: express.Request,
   res: express.Response,
@@ -92,7 +90,6 @@ interface DocumentChunk {
   source: string;
 }
 
-// Initialized cleanly with the core file
 let documentStore: DocumentChunk[] = [
   {
     source: "Thesis_Core_Info.txt",
@@ -111,69 +108,47 @@ app.get("/api/files", (req, res) => {
   res.json({ files: Array.from(indexedFiles) });
 });
 
-app.delete(
-  "/api/files/:filename",
-  authenticateAdmin,
-  (req, res) => {
-    const filename = req.params.filename;
-
-    if (!indexedFiles.has(filename)) {
-      return res.status(404).json({ error: "File not found" });
-    }
-
-    indexedFiles.delete(filename);
-    documentStore = documentStore.filter(doc => doc.source !== filename);
-
-    res.json({
-      message: "Deleted",
-      files: Array.from(indexedFiles),
-    });
+app.delete("/api/files/:filename", authenticateAdmin, (req, res) => {
+  const filename = req.params.filename;
+  if (!indexedFiles.has(filename)) {
+    return res.status(404).json({ error: "File not found" });
   }
-);
+  indexedFiles.delete(filename);
+  documentStore = documentStore.filter(doc => doc.source !== filename);
+  res.json({ message: "Deleted", files: Array.from(indexedFiles) });
+});
 
 app.post(
   "/api/upload",
   authenticateAdmin,
   (req, res, next) => {
     upload.array("files")(req, res, err => {
-      if (err) {
-        return res.status(400).json({ error: err.message });
-      }
+      if (err) return res.status(400).json({ error: err.message });
       next();
     });
   },
   async (req, res) => {
     const files = req.files as Express.Multer.File[];
-    if (!files?.length) {
-      return res.status(400).json({ error: "No files" });
-    }
+    if (!files?.length) return res.status(400).json({ error: "No files" });
 
     const results = [];
-
     for (const file of files) {
       try {
         let text = "";
         const ext = path.extname(file.originalname).toLowerCase();
-
         if (ext === ".docx") {
           const parsed = await mammoth.extractRawText({ buffer: file.buffer });
           text = parsed.value;
         } else {
           text = file.buffer.toString("utf8");
         }
-
         if (!text.trim()) continue;
 
         documentStore.push({ text, source: file.originalname });
         indexedFiles.add(file.originalname);
-
         results.push({ file: file.originalname, status: "success" });
       } catch (e: any) {
-        results.push({
-          file: file.originalname,
-          status: "error",
-          message: e.message,
-        });
+        results.push({ file: file.originalname, status: "error", message: e.message });
       }
     }
     res.json(results);
@@ -185,7 +160,6 @@ app.post("/api/chat", async (req, res) => {
     const { message, history = [] } = req.body;
     const ai = getAI();
 
-    // Context from dynamically managed RAG files
     const context = documentStore
       .map(c => `[Source Documents Content -> File: ${c.source}]\n${c.text}`)
       .join("\n\n");
@@ -193,7 +167,6 @@ app.post("/api/chat", async (req, res) => {
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       config: {
-        // Enforces core behavior rules alongside pure contextual text
         systemInstruction: `
 ${SYSTEM_PERSONA_PROMPT}
 
@@ -207,10 +180,7 @@ ${context}
           role: m.role === "user" ? "user" : "model",
           parts: [{ text: m.content }],
         })),
-        {
-          role: "user",
-          parts: [{ text: message }],
-        },
+        { role: "user", parts: [{ text: message }] },
       ],
     });
 
@@ -221,22 +191,11 @@ ${context}
   }
 });
 
-// Fixed: Reset now leaves base data perfectly intact while clearing uploads
-app.post(
-  "/api/reset",
-  authenticateAdmin,
-  (req, res) => {
-    documentStore = [
-      {
-        source: "Thesis_Core_Info.txt",
-        text: THESIS_BASE_TEXT,
-      },
-    ];
-    indexedFiles = new Set<string>(["Thesis_Core_Info.txt"]);
-
-    res.json({ message: "Reset complete" });
-  }
-);
+app.post("/api/reset", authenticateAdmin, (req, res) => {
+  documentStore = [{ source: "Thesis_Core_Info.txt", text: THESIS_BASE_TEXT }];
+  indexedFiles = new Set<string>(["Thesis_Core_Info.txt"]);
+  res.json({ message: "Reset complete" });
+});
 
 app.post("/api/login", (req, res) => {
   const { email, password } = req.body;
@@ -246,11 +205,14 @@ app.post("/api/login", (req, res) => {
   res.status(401).json({ error: "Invalid credentials" });
 });
 
+// --- SAFE MONOLITHIC SERVERLESS BOOTSTRAP ---
 async function startServer() {
   try {
-    const isProd = process.env.NODE_ENV === "production";
+    const isProd = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
 
     if (!isProd) {
+      // Dynamically import Vite only during local development
+      const { createServer: createViteServer } = await import("vite");
       const vite = await createViteServer({
         server: { middlewareMode: true },
         appType: "spa",
@@ -264,14 +226,20 @@ async function startServer() {
       });
     }
 
-    const portToUse = Number(process.env.PORT) || 3000;
-    app.listen(portToUse, "0.0.0.0", () => {
-      console.log("Server running on port", portToUse);
-    });
+    // CRITICAL: Avoid app.listen() if running on Vercel infrastructure
+    if (!process.env.VERCEL) {
+      const portToUse = Number(process.env.PORT) || 3000;
+      app.listen(portToUse, "0.0.0.0", () => {
+        console.log("Server running locally on port", portToUse);
+      });
+    }
   } catch (err) {
     console.error("Startup error:", err);
-    process.exit(1);
+    if (!process.env.VERCEL) process.exit(1);
   }
 }
 
 startServer();
+
+// Export the application layer for Vercel's serverless handler
+export default app;

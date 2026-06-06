@@ -18,7 +18,7 @@ export default function ChatPage({ onBack }: { onBack: () => void }) {
   const [messages, setMessages] = useState<Message[]>([
     { 
       role: "ai", 
-      content: "Hello! I’m the AI assistant for your thesis project. Accessing decentralized knowledge clusters across secure health networks. \n\nWould you like me to explain the **Privacy-Preserving Module** or the decentralized learning architecture?" 
+      content: "Hi there! Welcome! I’m really glad you’re interested in our research. We spent a lot of time figuring out how to spot disease outbreaks early using online data, while keeping everyone's personal information completely safe. Ask me anything you'd like about how we built it or what we discovered—I’m happy to chat!" 
     }
   ]);
   const [input, setInput] = useState("");
