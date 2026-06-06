@@ -1,6 +1,6 @@
 import express from "express";
-import path from "path";
 import multer from "multer";
+import path from "path";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import * as mammoth from "mammoth";
@@ -28,29 +28,18 @@ Authors: Malek W. Srouji, Mohammad F. Hajj.
 University: Lebanese International University.
 
 ### 1. THE CORE PROBLEM & OBJECTIVES OF OUR WORK
-* **The Core Tension:** Traditional epidemiological surveillance suffers from severe reporting delays. While digital epidemiology leverages multi-source online signals for real-time tracking, centralizing personal data violates strict regulations (GDPR, HIPAA).
 * **Our Core Question:** How could we design a privacy-preserving federated learning system to effectively detect public-health outbreak signals from heterogeneous, multi-source digital data while strictly adhering to regulatory constraints?
-* **Key Hurdles We Overcame:**
-  1. We handled highly heterogeneous, non-IID health data across completely different platforms.
-  2. We overcame severe data imbalance (sparse symptom data vs. background noise).
-  3. We preserved user privacy through distributed data localization without sacrificing lead times.
-
 ### 2. OUR DATA ACQUISITION & PROCESSING PIPELINES
-1. **Social-Media Node (Our Reddit Branch):** Fine-tuned a DistilBERT text classifier to recognize nuanced symptom expressions (F1-score: 0.9069, PR-AUC: 0.9247, decision threshold: 0.75).
-2. **Search-Engine Node (Our Search Branch):** Google COVID-19 Search Trends Symptoms Dataset (US region); served as our primary early-warning backbone.
-3. **Hospital Node (Our Clinical Context Branch):** CDC NHAMCS emergency department datasets. Formulated an auditable "respiratory-burden" weak label (ROC-AUC: 0.9629, Accuracy: 0.9411).
-
+1. **Social-Media Node (Our Reddit Branch):** Fine-tuned a DistilBERT text classifier (F1-score: 0.9069, PR-AUC: 0.9247, decision threshold: 0.75).
+2. **Search-Engine Node (Our Search Branch):** Google COVID-19 Search Trends Symptoms Dataset (US region).
+3. **Hospital Node (Our Clinical Context Branch):** CDC NHAMCS emergency department datasets (ROC-AUC: 0.9629, Accuracy: 0.9411).
 ### 3. DECENTRALIZED ARCHITECTURE & PRIVACY DESIGN
-* Raw records never leave localized silos. Federated learning server orchestrates global model aggregation without seeing raw data. Integrates Differential Privacy and secure aggregation.
-
+* Raw records never leave localized silos. Integrates Differential Privacy and secure aggregation.
 ### 4. GLOBAL SERVER FUSION & DECISION LOGIC
 * **Gated Fusion Rule:** Primary Score = (0.68 * Search Risk) + (0.17 * Reddit Support) + (0.15 * Hospital Context)
-  We intentionally dampened Reddit's influence unless search activity was independently elevated.
-
 ### 5. OUR EMPIRICAL SURVEILLANCE RESULTS
 * **Early Outbreak-Pressure Warning:** Triggered an alert 79 days prior to the target benchmark onset.
 * **High-Confidence Confirmed Warning:** Generated an alarm 24 days prior to onset.
-* Privacy protections introduced zero practical degradation to health intelligence collection.
 `;
 
 const authenticateAdmin = (
@@ -205,41 +194,29 @@ app.post("/api/login", (req, res) => {
   res.status(401).json({ error: "Invalid credentials" });
 });
 
-// --- SAFE MONOLITHIC SERVERLESS BOOTSTRAP ---
+// --- LOCAL DEVELOPMENT ONLY TRUCKING ---
 async function startServer() {
-  try {
-    const isProd = process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
-
-    if (!isProd) {
-      // Dynamically import Vite only during local development
+  // Only start a local server port listener if we aren't running inside Vercel's cloud infrastructure
+  if (!process.env.VERCEL) {
+    try {
       const { createServer: createViteServer } = await import("vite");
       const vite = await createViteServer({
         server: { middlewareMode: true },
         appType: "spa",
       });
       app.use(vite.middlewares);
-    } else {
-      const distPath = path.join(process.cwd(), "dist");
-      app.use(express.static(distPath));
-      app.get("*", (req, res) => {
-        res.sendFile(path.join(distPath, "index.html"));
-      });
-    }
 
-    // CRITICAL: Avoid app.listen() if running on Vercel infrastructure
-    if (!process.env.VERCEL) {
       const portToUse = Number(process.env.PORT) || 3000;
       app.listen(portToUse, "0.0.0.0", () => {
-        console.log("Server running locally on port", portToUse);
+        console.log("Local development server running on port:", portToUse);
       });
+    } catch (err) {
+      console.error("Local startup error:", err);
     }
-  } catch (err) {
-    console.error("Startup error:", err);
-    if (!process.env.VERCEL) process.exit(1);
   }
 }
 
 startServer();
 
-// Export the application layer for Vercel's serverless handler
+// Export the application configuration for Vercel's serverless pipeline handler
 export default app;
