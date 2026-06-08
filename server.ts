@@ -148,7 +148,6 @@ app.post("/api/chat", async (req, res) => {
   try {
     const { message, history = [] } = req.body;
     
-    // Ensure the main outgoing message is valid
     if (!message || !message.trim()) {
       return res.status(400).json({ error: "Message content cannot be empty" });
     }
@@ -160,14 +159,17 @@ app.post("/api/chat", async (req, res) => {
       .map(c => `[Source Documents Content -> File: ${c.source}]\n${c.text}`)
       .join("\n\n");
 
-    // Clean and validate history to avoid consecutive identical roles (e.g., user-user)
+    // ⏳ FIX 1: Prevent Vercel 10s Timeouts by limiting context to the last 10 turns
+    // This keeps the payload lightweight and lightning fast over long sessions
+    const recentHistory = history.slice(-10);
+
+    // Clean and validate history to avoid consecutive identical roles
     const formattedHistory = [];
     let lastRole = "";
     
-    for (const m of history) {
+    for (const m of recentHistory) {
       const currentRole = m.role === "user" ? "user" : "model";
       
-      // SHIELD: Skip empty string objects, missing fields, or consecutive duplicate roles
       if (!m.content || !m.content.trim() || currentRole === lastRole) continue;
       
       formattedHistory.push({
@@ -175,6 +177,13 @@ app.post("/api/chat", async (req, res) => {
         parts: [{ text: m.content }]
       });
       lastRole = currentRole;
+    }
+
+    // 🛡️ FIX 2: Check the boundary turn.
+    // If the history ends with a "user" role, popping it avoids a "user -> user" crash 
+    // since we are explicitly appending the current user message right below.
+    if (formattedHistory.length > 0 && formattedHistory[formattedHistory.length - 1].role === "user") {
+      formattedHistory.pop();
     }
 
     // Call the Gemini API with optimized safety rules for public health data
@@ -188,7 +197,6 @@ ${SYSTEM_PERSONA_PROMPT}
 Use the provided text below to answer any granular, supplementary, or highly specific technical questions:
 ${context}
 `,
-        // Using the strict SDK enums to prevent TypeScript assignment errors
         safetySettings: [
           { 
             category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, 
