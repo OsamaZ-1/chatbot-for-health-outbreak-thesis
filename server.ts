@@ -1,7 +1,7 @@
 import express from "express";
 import multer from "multer";
 import path from "path";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
 import dotenv from "dotenv";
 import * as mammoth from "mammoth";
 
@@ -147,12 +147,37 @@ app.post(
 app.post("/api/chat", async (req, res) => {
   try {
     const { message, history = [] } = req.body;
+    
+    // Ensure the main outgoing message is valid
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: "Message content cannot be empty" });
+    }
+
     const ai = getAI();
 
+    // Compile document chunks into text context
     const context = documentStore
       .map(c => `[Source Documents Content -> File: ${c.source}]\n${c.text}`)
       .join("\n\n");
 
+    // Clean and validate history to avoid consecutive identical roles (e.g., user-user)
+    const formattedHistory = [];
+    let lastRole = "";
+    
+    for (const m of history) {
+      const currentRole = m.role === "user" ? "user" : "model";
+      
+      // SHIELD: Skip empty string objects, missing fields, or consecutive duplicate roles
+      if (!m.content || !m.content.trim() || currentRole === lastRole) continue;
+      
+      formattedHistory.push({
+        role: currentRole,
+        parts: [{ text: m.content }]
+      });
+      lastRole = currentRole;
+    }
+
+    // Call the Gemini API with optimized safety rules for public health data
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       config: {
@@ -163,20 +188,49 @@ ${SYSTEM_PERSONA_PROMPT}
 Use the provided text below to answer any granular, supplementary, or highly specific technical questions:
 ${context}
 `,
+        // Using the strict SDK enums to prevent TypeScript assignment errors
+        safetySettings: [
+          { 
+            category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, 
+            threshold: HarmBlockThreshold.BLOCK_NONE 
+          },
+          { 
+            category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, 
+            threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE 
+          },
+          { 
+            category: HarmCategory.HARM_CATEGORY_HARASSMENT, 
+            threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE 
+          },
+          { 
+            category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, 
+            threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE 
+          }
+        ]
       },
       contents: [
-        ...history.map((m: any) => ({
-          role: m.role === "user" ? "user" : "model",
-          parts: [{ text: m.content }],
-        })),
+        ...formattedHistory,
         { role: "user", parts: [{ text: message }] },
       ],
     });
 
-    res.json({ text: response.text });
+    // Safely check if the generation was halted due to content blocks before parsing
+    const candidate = response.candidates?.[0];
+    if (candidate?.finishReason === "SAFETY" || candidate?.finishReason === "RECITATION") {
+      return res.json({ 
+        text: "I apologize, but my response generation was halted by safety filters. As the core researcher, I can tell you this topic approaches highly sensitive medical terms. Let's rephrase the question to focus strictly on our technical Gated Fusion rules or Federated Learning pipelines." 
+      });
+    }
+
+    const replyText = response.text || "I was unable to formulate an engine response. Could you please rephrase your query?";
+    res.json({ text: replyText });
+
   } catch (err: any) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    console.error("Gemini API Chat Route Error:", err);
+    res.status(500).json({ 
+      error: "Internal Server Error", 
+      details: err.message || "Unknown error occurred" 
+    });
   }
 });
 
