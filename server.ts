@@ -146,6 +146,12 @@ app.post(
 
 app.post("/api/chat", async (req, res) => {
   try {
+    // 🔍 SERVER LOGS: This will print the exact structure of your data in the Vercel Logs tab
+    console.log("=== INCOMING CHAT REQUEST ===");
+    console.log("Current Message:", req.body.message);
+    console.log("Raw History Length:", req.body.history?.length || 0);
+    console.log("Raw History Payload:", JSON.stringify(req.body.history, null, 2));
+
     const { message, history = [] } = req.body;
     
     if (!message || !message.trim()) {
@@ -159,29 +165,45 @@ app.post("/api/chat", async (req, res) => {
       .map(c => `[Source Documents Content -> File: ${c.source}]\n${c.text}`)
       .join("\n\n");
 
-    // ⏳ FIX 1: Prevent Vercel 10s Timeouts by limiting context to the last 10 turns
-    // This keeps the payload lightweight and lightning fast over long sessions
+    // Limit sliding history window to prevent Vercel 10s serverless timeouts
     const recentHistory = history.slice(-10);
 
-    // Clean and validate history to avoid consecutive identical roles
     const formattedHistory = [];
     let lastRole = "";
     
     for (const m of recentHistory) {
+      // Normalize roles safely
       const currentRole = m.role === "user" ? "user" : "model";
       
-      if (!m.content || !m.content.trim() || currentRole === lastRole) continue;
-      
-      formattedHistory.push({
-        role: currentRole,
-        parts: [{ text: m.content }]
-      });
-      lastRole = currentRole;
+      // 🛡️ POLYMORPHIC EXTRACTION: Look for text across all common payload properties
+      let textContent = "";
+      if (typeof m.content === "string") {
+        textContent = m.content;
+      } else if (typeof m.text === "string") {
+        textContent = m.text;
+      } else if (m.parts && Array.isArray(m.parts) && m.parts[0]?.text) {
+        textContent = m.parts[0].text;
+      }
+
+      // Skip this element entirely if it contains no valid text to avoid 400 uninitialized data errors
+      if (!textContent || !textContent.trim()) {
+        continue;
+      }
+
+      // 🔄 SMART MERGE: If consecutive roles match (e.g., user followed by user), 
+      // combine their text strings together instead of crashing the alternating sequence rule.
+      if (currentRole === lastRole && formattedHistory.length > 0) {
+        formattedHistory[formattedHistory.length - 1].parts[0].text += "\n" + textContent.trim();
+      } else {
+        formattedHistory.push({
+          role: currentRole,
+          parts: [{ text: textContent.trim() }]
+        });
+        lastRole = currentRole;
+      }
     }
 
-    // 🛡️ FIX 2: Check the boundary turn.
-    // If the history ends with a "user" role, popping it avoids a "user -> user" crash 
-    // since we are explicitly appending the current user message right below.
+    // Guard the final boundary turn against user -> user collisions with the current message
     if (formattedHistory.length > 0 && formattedHistory[formattedHistory.length - 1].role === "user") {
       formattedHistory.pop();
     }
@@ -222,7 +244,7 @@ ${context}
       ],
     });
 
-    // Safely check if the generation was halted due to content blocks before parsing
+    // Safely check if generation was halted due to safety filtering
     const candidate = response.candidates?.[0];
     if (candidate?.finishReason === "SAFETY" || candidate?.finishReason === "RECITATION") {
       return res.json({ 
