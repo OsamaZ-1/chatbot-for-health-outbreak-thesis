@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -19,102 +19,188 @@ interface Point {
 
 export default function LiveOutbreakGraph() {
   const [data, setData] = useState<Point[]>([]);
+  const timeRef = useRef(0);
+
+  const clamp = (v: number) => Math.max(0, Math.min(100, v));
+
+  const generatePoint = (): Point => {
+    timeRef.current += 0.12;
+
+    const t = timeRef.current;
+
+    // Simulated outbreak waves
+    const wave1 = 35 * Math.exp(-Math.pow((t - 8) / 3.5, 2));
+    const wave2 = 50 * Math.exp(-Math.pow((t - 24) / 5, 2));
+    const wave3 = 30 * Math.exp(-Math.pow((t - 42) / 4, 2));
+
+    const outbreakPressure = wave1 + wave2 + wave3;
+
+    // Background seasonal variation
+    const seasonal = 8 * Math.sin(t * 0.18);
+
+    // Search engine notices first
+    const search =
+      20 +
+      outbreakPressure * 1.1 +
+      seasonal +
+      3 * Math.sin(t * 1.7) +
+      (Math.random() * 2 - 1);
+
+    // Social media follows shortly after
+    const social =
+      25 +
+      outbreakPressure * 0.95 +
+      6 * Math.sin(t * 0.15 + 1) +
+      2 * Math.sin(t * 1.2) +
+      (Math.random() * 2 - 1);
+
+    // Hospitals react later and more slowly
+    const hospital =
+      15 +
+      wave1 * 0.6 +
+      wave2 * 0.75 +
+      wave3 * 0.8 +
+      4 * Math.sin(t * 0.12 + 2) +
+      (Math.random() * 1.5 - 0.75);
+
+    // Federated fusion result
+    const outbreak =
+      search * 0.30 +
+      social * 0.35 +
+      hospital * 0.35;
+
+    return {
+      time: "",
+      search: clamp(search),
+      social: clamp(social),
+      hospital: clamp(hospital),
+      outbreak: clamp(outbreak),
+    };
+  };
 
   useEffect(() => {
-    const generatePoint = (): Point => {
-      const now = new Date();
+    const initial: Point[] = [];
 
-      const social = 40 + Math.random() * 30;
-      const hospital = 25 + Math.random() * 40;
-      const search = 30 + Math.random() * 35;
+    for (let i = 0; i < 50; i++) {
+      initial.push(generatePoint());
+    }
 
-      const outbreak =
-        social * 0.35 +
-        hospital * 0.4 +
-        search * 0.25 +
-        (Math.random() * 10 - 5);
+    initial.forEach((point, index) => {
+      point.time = index.toString();
+    });
 
-      return {
-        time: now.toLocaleTimeString(),
-        social,
-        hospital,
-        search,
-        outbreak,
-      };
-    };
-
-    const initial = Array.from({ length: 20 }, generatePoint);
     setData(initial);
 
     const interval = setInterval(() => {
       setData((prev) => {
-        const updated = [...prev, generatePoint()];
-        return updated.slice(-30);
+        const next = generatePoint();
+
+        const updated = [
+          ...prev,
+          {
+            ...next,
+            time: (Number(prev[prev.length - 1]?.time ?? 0) + 1).toString(),
+          },
+        ];
+
+        return updated.slice(-60);
       });
-    }, 1000);
+    }, 800);
 
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <div className="w-full h-[420px] rounded-2xl border border-white/10 bg-black/30 p-4">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="relative w-full h-[500px] rounded-3xl border border-white/10 bg-black/30 backdrop-blur-xl p-6 overflow-hidden">
+
+      {/* Glow Effects */}
+      <div className="absolute top-0 left-0 w-64 h-64 bg-cyan-500/10 blur-3xl rounded-full" />
+      <div className="absolute bottom-0 right-0 w-64 h-64 bg-purple-500/10 blur-3xl rounded-full" />
+
+      <div className="relative z-10 flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-white text-lg font-semibold">
+            Live Outbreak Probability Stream
+          </h3>
+          <p className="text-white/40 text-sm">
+            Federated multi-source intelligence fusion
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 text-green-400 text-xs uppercase tracking-widest font-mono">
+          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+          Live
+        </div>
+      </div>
+
+      <ResponsiveContainer width="100%" height="88%">
         <LineChart data={data}>
-          <CartesianGrid stroke="rgba(255,255,255,0.05)" />
+          <CartesianGrid
+            stroke="rgba(255,255,255,0.05)"
+            vertical={false}
+          />
 
           <XAxis
             dataKey="time"
-            tick={{ fill: "#888" }}
-            minTickGap={20}
+            tick={false}
+            axisLine={false}
+            tickLine={false}
           />
 
           <YAxis
             domain={[0, 100]}
-            tick={{ fill: "#888" }}
+            tick={{ fill: "#666" }}
+            axisLine={false}
+            tickLine={false}
           />
 
           <Tooltip
             contentStyle={{
-              background: "#0f1115",
+              background: "#0B0F14",
               border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: "12px",
+              borderRadius: "16px",
+              backdropFilter: "blur(12px)",
             }}
           />
 
-          <Line
-            type="monotone"
-            dataKey="social"
-            stroke="#00E5FF"
-            strokeWidth={2.5}
-            dot={false}
-            animationDuration={800}
-          />
-
-          <Line
-            type="monotone"
-            dataKey="hospital"
-            stroke="#FF4D6D"
-            strokeWidth={2.5}
-            dot={false}
-            animationDuration={800}
-          />
-
+          {/* Search Engine */}
           <Line
             type="monotone"
             dataKey="search"
-            stroke="#B388FF"
+            stroke="#A855F7"
             strokeWidth={2.5}
             dot={false}
-            animationDuration={800}
+            animationDuration={600}
           />
 
+          {/* Social Media */}
+          <Line
+            type="monotone"
+            dataKey="social"
+            stroke="#06B6D4"
+            strokeWidth={2.5}
+            dot={false}
+            animationDuration={600}
+          />
+
+          {/* Hospital */}
+          <Line
+            type="monotone"
+            dataKey="hospital"
+            stroke="#F43F5E"
+            strokeWidth={2.5}
+            dot={false}
+            animationDuration={600}
+          />
+
+          {/* Final Outbreak Probability */}
           <Line
             type="monotone"
             dataKey="outbreak"
-            stroke="#00FF95"
-            strokeWidth={4}
+            stroke="#22C55E"
+            strokeWidth={5}
             dot={false}
-            animationDuration={800}
+            animationDuration={600}
           />
         </LineChart>
       </ResponsiveContainer>
