@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Bot, Shield, Globe, Cpu, ChevronRight, Upload, Layers } from 'lucide-react';
+import LiveOutbreakGraph from "../components/LiveOutbreakGraph";
 
 export default function LandingPage({ onStartChat }: { onStartChat: () => void }) {
   return (
@@ -115,6 +116,18 @@ export default function LandingPage({ onStartChat }: { onStartChat: () => void }
             </div>
 
           </motion.div>
+        </div>
+
+        {/* LIVE OUTBREAK MONITOR */}
+        <div className="mb-32">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+            <span className="text-xs uppercase tracking-[0.3em] text-green-400 font-mono">
+              Live Federated Signal Stream
+            </span>
+          </div>
+
+          <LiveOutbreakGraph />
         </div>
 
         {/* CARDS */}
