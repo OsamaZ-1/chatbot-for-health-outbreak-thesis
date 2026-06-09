@@ -17,15 +17,17 @@ interface Point {
   outbreak: number;
 }
 
-const months = [
-  "09-2019",
-  "10-2019",
-  "11-2019",
-  "12-2019", // peak
-  "01-2020",
-  "02-2020",
-  "03-2020",
-];
+// 09/2019 → 03/2020 expanded into daily scale (~210 days)
+const totalDays = 210;
+
+// format helper
+const formatDate = (dayIndex: number) => {
+  const start = new Date(2019, 8, 1); // Sept 1 2019
+  const d = new Date(start);
+  d.setDate(start.getDate() + dayIndex);
+
+  return `${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+};
 
 export default function LiveOutbreakGraph() {
   const [data, setData] = useState<Point[]>([]);
@@ -34,46 +36,36 @@ export default function LiveOutbreakGraph() {
   const clamp = (v: number) => Math.max(0, Math.min(100, v));
 
   const generatePoint = (i: number): Point => {
-    const t = i;
+    const t = i % totalDays;
 
-    // outbreak peak centered at Dec 2019
-    const peak = 3; // index of 12-2019
+    // normalize 0 → 1 timeline
+    const x = t / totalDays;
 
-    const outbreakPressure =
-      70 * Math.exp(-Math.pow((t - peak) / 1.2, 2));
+    // epidemic peak centered at Dec 2019 (~0.5)
+    const peak = Math.exp(-Math.pow((x - 0.5) / 0.09, 2));
 
-    // smooth seasonal drift
-    const drift = 6 * Math.sin(t * 0.8);
+    // second smaller wave (late Jan 2020)
+    const wave2 = 0.6 * Math.exp(-Math.pow((x - 0.7) / 0.07, 2));
 
-    // SEARCH (earliest signal)
+    const outbreakPressure = (peak * 80 + wave2 * 60);
+
+    // smooth oscillation (seasonal + reporting noise)
+    const seasonal = 6 * Math.sin(x * Math.PI * 6);
+
     const search =
-      20 +
-      outbreakPressure * 1.15 +
-      drift +
-      3 * Math.sin(t * 2) +
-      (Math.random() * 2 - 1);
+      20 + outbreakPressure * 1.2 + seasonal + Math.sin(x * 10) * 2;
 
-    // SOCIAL (follows search)
     const social =
-      25 +
-      outbreakPressure * 0.95 +
-      2 * Math.sin(t * 1.4) +
-      (Math.random() * 2 - 1);
+      25 + outbreakPressure * 0.95 + Math.sin(x * 9 + 1) * 2;
 
-    // HOSPITAL (lags behind)
     const hospital =
-      15 +
-      outbreakPressure * 0.75 +
-      2 * Math.sin(t * 1.1) +
-      (Math.random() * 1.5 - 0.75);
+      15 + outbreakPressure * 0.75 + Math.sin(x * 8 + 2) * 1.5;
 
     const outbreak =
-      search * 0.3 +
-      social * 0.35 +
-      hospital * 0.35;
+      search * 0.3 + social * 0.35 + hospital * 0.35;
 
     return {
-      date: months[t % months.length],
+      date: formatDate(t),
       search: clamp(search),
       social: clamp(social),
       hospital: clamp(hospital),
@@ -82,8 +74,10 @@ export default function LiveOutbreakGraph() {
   };
 
   useEffect(() => {
-    // initial dataset
-    const initial = months.map((_, i) => generatePoint(i));
+    const initial = Array.from({ length: 60 }, (_, i) =>
+      generatePoint(i)
+    );
+
     setData(initial);
 
     const interval = setInterval(() => {
@@ -95,38 +89,38 @@ export default function LiveOutbreakGraph() {
         const updated = [...prev, next];
 
         // keep rolling window
-        return updated.slice(-months.length);
+        return updated.slice(-90);
       });
 
-      // loop back smoothly
-      if (indexRef.current > 1000) {
-        indexRef.current = 0;
+      // smooth loop reset (no visual jump)
+      if (indexRef.current > 10000) {
+        indexRef.current = indexRef.current % totalDays;
       }
-    }, 1200);
+    }, 500);
 
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <div className="w-full h-[320px] sm:h-[420px] md:h-[500px] rounded-2xl sm:rounded-3xl border border-white/10 bg-black/30 backdrop-blur-xl p-3 sm:p-6">
+    <div className="w-full h-[320px] sm:h-[420px] md:h-[500px] rounded-2xl border border-white/10 bg-black/30 backdrop-blur-xl p-3 sm:p-6">
+
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ left: 10, right: 10 }}>
 
           <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
 
-          {/* X AXIS (mobile-first readable dates) */}
+          {/* X AXIS = DAILY TIMELINE */}
           <XAxis
             dataKey="date"
-            tick={{ fill: "#999", fontSize: 10 }}
-            interval={0}
+            tick={{ fill: "#888", fontSize: 9 }}
+            interval={12} // show every ~12 days (mobile-friendly)
             angle={-35}
             textAnchor="end"
-            height={50}
+            height={55}
             axisLine={false}
             tickLine={false}
           />
 
-          {/* Y AXIS (simplified for mobile) */}
           <YAxis
             domain={[0, 100]}
             tick={{ fill: "#666", fontSize: 10 }}
@@ -144,14 +138,14 @@ export default function LiveOutbreakGraph() {
             }}
           />
 
-          {/* SEARCH */}
+          {/* SEARCH (early warning) */}
           <Line
             type="monotone"
             dataKey="search"
             stroke="#A855F7"
             strokeWidth={2}
             dot={false}
-            animationDuration={800}
+            animationDuration={400}
           />
 
           {/* SOCIAL */}
@@ -161,27 +155,27 @@ export default function LiveOutbreakGraph() {
             stroke="#06B6D4"
             strokeWidth={2}
             dot={false}
-            animationDuration={800}
+            animationDuration={400}
           />
 
-          {/* HOSPITAL */}
+          {/* HOSPITAL (lagging indicator) */}
           <Line
             type="monotone"
             dataKey="hospital"
             stroke="#F43F5E"
             strokeWidth={2}
             dot={false}
-            animationDuration={800}
+            animationDuration={400}
           />
 
-          {/* OUTBREAK */}
+          {/* OUTBREAK (fusion result) */}
           <Line
             type="monotone"
             dataKey="outbreak"
             stroke="#22C55E"
             strokeWidth={3}
             dot={false}
-            animationDuration={800}
+            animationDuration={400}
           />
 
         </LineChart>
