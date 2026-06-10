@@ -8,21 +8,22 @@ import {
   Tooltip,
   CartesianGrid,
   Legend,
+  ReferenceLine,
 } from "recharts";
 
 interface Point {
   date: string;
-  search: number;   // Google Trends Branch
-  social: number;   // Reddit Branch (BERT Ratio/Mean)
-  hospital: number; // NHAMCS Clinical Branch
-  outbreak: number; // Federated Aggregator Target
+  search: number;   // Search Engine Node
+  social: number;   // Social Media Node
+  hospital: number; // Hospital Node
+  outbreak: number; // Federated Fusion Output
 }
 
-// Generates the static historical timeline base matching your CSVs (Sept 2019 - Apr 2020)
-const generateThesisTimeline = (): Point[] => {
+// Generates the customized historical timeline matching the new curve constraints
+const generateCustomTimeline = (): Point[] => {
   const points: Point[] = [];
   const start = new Date(2019, 8, 1); // 2019-09-01
-  const totalDays = 242; // Extends through late April 2020 to capture full tail
+  const totalDays = 242; // Runs through late April 2020
 
   const clamp = (v: number) => Math.max(0, Math.min(100, v));
 
@@ -30,45 +31,48 @@ const generateThesisTimeline = (): Point[] => {
     const current = new Date(start);
     current.setDate(start.getDate() + i);
     
-    // Format to match your dataset keys (YYYY-MM-DD)
+    // Format to match standardized ISO structure YYYY-MM-DD
     const dateStr = current.toISOString().split("T")[0];
-    
-    // Normalized timeline factor (0 to 1)
     const x = i / totalDays;
 
-    // --- Thesis Model Simulation Variables ---
-    // Peak 1: Centered at Dec 2019 (~ Day 105, x ~ 0.43)
-    const peak1 = Math.exp(-Math.pow((x - 0.43) / 0.08, 2));
+    // --- Custom Curve Shape Definition ---
     
-    // Peak 2: Secondary wave in late Jan / early Feb 2020 (~ Day 160, x ~ 0.66)
-    const peak2 = 0.55 * Math.exp(-Math.pow((x - 0.66) / 0.06, 2));
+    // 1. Small Initial Peak: Centered around Dec 9, 2019 (Day ~100, x ~0.41)
+    const smallPeak = 25 * Math.exp(-Math.pow((x - 0.41) / 0.04, 2));
+
+    // 2. Large Sustained Peak: Centered around Feb 2, 2020 (Day ~154, x ~0.64)
+    const largePeakCenter = 0.64;
+    let largePeak = 0;
     
-    const baseSignal = peak1 * 75 + peak2 * 50;
+    if (x < largePeakCenter) {
+      // Steady climb leading up to February peak
+      largePeak = 65 * Math.exp(-Math.pow((x - largePeakCenter) / 0.12, 2));
+    } else {
+      // Plateaus slightly under the peak maximum after February
+      largePeak = 58 + 7 * Math.exp(-Math.pow((x - largePeakCenter) / 0.05, 2));
+    }
+
+    // Combine underlying mathematical outbreak pressure curves
+    const outbreakPressure = 12 + smallPeak + largePeak;
+
+    // Standard baseline oscillations across nodes (weekly reporting variations)
+    const weeklyNoise = Math.sin(i * (Math.PI * 2 / 7)) * 2;
+    const randomWalk = Math.sin(x * Math.PI * 10) * 1;
+
+    // Apply specific offsets/multipliers to individual branches to keep them structurally unique
+    const search = outbreakPressure * 1.1 + weeklyNoise + 4;
+    const social = outbreakPressure * 1.0 + randomWalk + 6;
     
-    // Seasonal and weekly reporting oscillation patterns found in raw data
-    const dayOfWeekNoise = Math.sin(i * (Math.PI * 2 / 7)) * 2.5;
-    const macroNoise = Math.sin(x * Math.PI * 8) * 1.5;
+    // Hospital shows standard lagging clinical validation behavior
+    const lagIndex = Math.max(0, i - 6);
+    const hospitalLagX = lagIndex / totalDays;
+    const hSmallPeak = 22 * Math.exp(-Math.pow((hospitalLagX - 0.41) / 0.04, 2));
+    const hLargePeak = hospitalLagX < largePeakCenter 
+      ? 60 * Math.exp(-Math.pow((hospitalLagX - largePeakCenter) / 0.12, 2))
+      : 54 + 6 * Math.exp(-Math.pow((hospitalLagX - largePeakCenter) / 0.05, 2));
+    const hospital = (10 + hSmallPeak + hLargePeak) * 0.95 + weeklyNoise * 0.5;
 
-    // 1. Search Engine Node (Leading Indicator: Early onset spikes)
-    // Rises earliest, has sharper initial curve reactions
-    const searchLead = x < 0.4 ? Math.exp(-Math.pow((x - 0.39) / 0.09, 2)) * 15 : 0;
-    const search = 18 + (baseSignal * 1.15) + searchLead + dayOfWeekNoise + macroNoise;
-
-    // 2. Social Media Node (BERT Pred Ratio / Buzz metrics)
-    // Highly volatile, steady baseline conversation, reactive to news
-    const socialNoise = Math.cos(i * 1.2) * 3;
-    const social = 22 + (baseSignal * 1.0) + socialNoise + macroNoise;
-
-    // 3. Hospital Node (Lagging Clinical Indicator)
-    // Shifts later along the timeline window (delayed presentation curve)
-    const lagX = (i - 8) / totalDays; // 8-day physical incubation/admission lag
-    const hospitalPeak1 = Math.exp(-Math.pow((lagX - 0.43) / 0.08, 2));
-    const hospitalPeak2 = 0.6 * Math.exp(-Math.pow((lagX - 0.66) / 0.06, 2));
-    const hospitalSignal = hospitalPeak1 * 72 + hospitalPeak2 * 48;
-    const hospital = 12 + (hospitalSignal * 0.9) + (dayOfWeekNoise * 0.5);
-
-    // 4. Federated Aggregator Output (Fusion Result)
-    // Combines tracking metrics into an early warning alert probability map
+    // Global federated output tracking the multi-platform fusion
     const outbreak = (search * 0.3) + (social * 0.35) + (hospital * 0.35);
 
     points.push({
@@ -82,32 +86,28 @@ const generateThesisTimeline = (): Point[] => {
   return points;
 };
 
-const historicalData = generateThesisTimeline();
+const historicalData = generateCustomTimeline();
 
 export default function LiveOutbreakGraph() {
   const [visibleData, setVisibleData] = useState<Point[]>([]);
   const [isPrivateDP, setIsPrivateDP] = useState<boolean>(false);
-  const indexRef = useRef(90); // Start with a 90-day window visible
+  const indexRef = useRef(110); // Starts window with the first timeline landmark already visible
 
   useEffect(() => {
-    // Initial window population
     setVisibleData(historicalData.slice(0, indexRef.current));
 
-    // Live simulation tick intervals (appends next date sequence matching temporal processing)
     const interval = setInterval(() => {
       indexRef.current += 1;
 
       if (indexRef.current > historicalData.length) {
-        indexRef.current = 90; // Reset loop back to historical baseline start
+        indexRef.current = 110; // Loop reset bound
       }
 
       const nextWindow = historicalData.slice(0, indexRef.current);
       
-      // Inject Light Differential Privacy (DP) Noise on the fly if toggled
       if (isPrivateDP) {
         const noisyWindow = nextWindow.map(p => {
-          // Approximate Laplace noise addition to local metrics
-          const laplaceNoise = () => (Math.random() - 0.5) * 4.5; 
+          const laplaceNoise = () => (Math.random() - 0.5) * 4;
           return {
             ...p,
             search: Math.max(0, Math.min(100, p.search + laplaceNoise())),
@@ -115,11 +115,11 @@ export default function LiveOutbreakGraph() {
             hospital: Math.max(0, Math.min(100, p.hospital + laplaceNoise())),
           };
         });
-        setVisibleData(noisyWindow.slice(-120)); // Keep a moving rolling window of 120 days
+        setVisibleData(noisyWindow.slice(-140)); // Keeps rolling viewing pane active
       } else {
-        setVisibleData(nextWindow.slice(-120));
+        setVisibleData(nextWindow.slice(-140));
       }
-    }, 400);
+    }, 350);
 
     return () => clearInterval(interval);
   }, [isPrivateDP]);
@@ -129,14 +129,13 @@ export default function LiveOutbreakGraph() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
           <h3 className="text-lg font-semibold text-white tracking-wide">
-            Multi-Node Node Outbreak Prediction Timeline
+            Multi-Node Outbreak Prediction Timeline
           </h3>
           <p className="text-xs text-gray-400 mt-0.5">
             Real-time evaluation across federated multi-platform data branches
           </p>
         </div>
         
-        {/* Toggle between standard data curves and Differential Privacy curves */}
         <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/10 text-xs text-gray-300">
           <button
             onClick={() => setIsPrivateDP(false)}
@@ -153,15 +152,15 @@ export default function LiveOutbreakGraph() {
         </div>
       </div>
 
-      <div className="w-full h-[320px] sm:h-[420px]">
+      <div className="w-full h-[340px] sm:h-[440px]">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={visibleData} margin={{ left: -10, right: 10, top: 10 }}>
+          <LineChart data={visibleData} margin={{ left: -10, right: 25, top: 20 }}>
             <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
 
             <XAxis
               dataKey="date"
               tick={{ fill: "#9CA3AF", fontSize: 10 }}
-              interval={14} // Balanced step markers for readable dates
+              interval={14}
               angle={-45}
               textAnchor="end"
               height={60}
@@ -194,52 +193,81 @@ export default function LiveOutbreakGraph() {
               wrapperStyle={{ fontSize: '12px', paddingBottom: '10px' }}
             />
 
-            {/* SEARCH ENGINE BRANCH */}
+            {/* HIGHLIGHTED TARGET DATES */}
+            <ReferenceLine
+              x="2019-12-09"
+              stroke="#F59E0B"
+              strokeDasharray="4 4"
+              strokeWidth={1.5}
+              label={{
+                value: "Initial Peak (12/09)",
+                position: "top",
+                fill: "#F59E0B",
+                fontSize: 10,
+                fontWeight: "500"
+              }}
+            />
+
+            <ReferenceLine
+              x="2020-02-02"
+              stroke="#EF4444"
+              strokeDasharray="4 4"
+              strokeWidth={1.5}
+              label={{
+                value: "Major Outbreak Peak (02/02)",
+                position: "top",
+                fill: "#EF4444",
+                fontSize: 10,
+                fontWeight: "500"
+              }}
+            />
+
+            {/* SEARCH ENGINE NODE */}
             <Line
               name="Search Engine Node"
               type="monotone"
               dataKey="search"
-              stroke="#C084FC" // Purple-400
+              stroke="#C084FC"
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4 }}
-              animationDuration={300}
+              animationDuration={200}
             />
 
-            {/* SOCIAL MEDIA BRANCH */}
+            {/* SOCIAL MEDIA NODE */}
             <Line
               name="Social Media Node (BERT)"
               type="monotone"
               dataKey="social"
-              stroke="#22D3EE" // Cyan-400
+              stroke="#22D3EE"
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4 }}
-              animationDuration={300}
+              animationDuration={200}
             />
 
-            {/* HOSPITAL SYSTEM BRANCH */}
+            {/* HOSPITAL SYSTEM NODE */}
             <Line
               name="Hospital Branch (NHAMCS)"
               type="monotone"
               dataKey="hospital"
-              stroke="#FB7185" // Rose-400
+              stroke="#FB7185"
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4 }}
-              animationDuration={300}
+              animationDuration={200}
             />
 
-            {/* FEDERATED AGGREGATED GLOBAL PREDICTION */}
+            {/* CENTRAL FEDERATED AGGREGATION FUSION */}
             <Line
               name="Federated Global Fusion Output"
               type="monotone"
               dataKey="outbreak"
-              stroke="#4ADE80" // Green-400
+              stroke="#4ADE80"
               strokeWidth={3.5}
               dot={false}
               activeDot={{ r: 6 }}
-              animationDuration={300}
+              animationDuration={200}
             />
           </LineChart>
         </ResponsiveContainer>
