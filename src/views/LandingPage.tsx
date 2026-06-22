@@ -239,6 +239,179 @@ export default function LandingPage({ onStartChat }: { onStartChat: () => void }
   </div>
 </div>
 
+{/* EARLY WARNING TIMELINE */}
+<div className="mb-20 sm:mb-32">
+
+  <h2 className="text-2xl sm:text-4xl font-bold mb-8 sm:mb-12 flex items-center gap-4">
+    <span className="w-8 sm:w-12 h-1 bg-accent-purple" />
+    Early Detection Timeline
+  </h2>
+
+  <div className="glass-card p-6 sm:p-12">
+
+    <div className="relative border-l border-accent-cyan/30 pl-6 space-y-10">
+
+      {[
+        {
+          time: "T - 79 days",
+          title: "Early Signal Emergence",
+          desc: "Search and social anomalies begin diverging from baseline behavior."
+        },
+        {
+          time: "T - 24 days",
+          title: "High-Confidence Alert",
+          desc: "Fusion model confirms consistent multi-node outbreak pressure."
+        },
+        {
+          time: "T0",
+          title: "Outbreak Confirmation",
+          desc: "Ground truth onset aligns with hospital data spike."
+        },
+      ].map((event, i) => (
+        <div key={i} className="relative">
+
+          <div className="absolute -left-[34px] top-1 w-3 h-3 rounded-full bg-accent-cyan shadow-lg shadow-accent-cyan/40" />
+
+          <div>
+            <p className="text-accent-cyan text-xs font-bold">{event.time}</p>
+            <h3 className="text-white font-bold">{event.title}</h3>
+            <p className="text-white/60 text-sm mt-1">{event.desc}</p>
+          </div>
+
+        </div>
+      ))}
+
+    </div>
+  </div>
+</div>
+
+{/* DATA FLOW PIPELINE */}
+<div className="mb-20 sm:mb-32">
+
+  <h2 className="text-2xl sm:text-4xl font-bold mb-8 sm:mb-12 flex items-center gap-4">
+    <span className="w-8 sm:w-12 h-1 bg-accent-cyan" />
+    Signal Processing Pipeline
+  </h2>
+
+  <div className="glass-card p-6 sm:p-12">
+
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+
+      {[
+        {
+          title: "Raw Signals",
+          desc: "Unstructured social, search, and clinical data streams",
+          color: "from-cyan-500/20"
+        },
+        {
+          title: "Feature Extraction",
+          desc: "Text classification + trend normalization + noise filtering",
+          color: "from-purple-500/20"
+        },
+        {
+          title: "Fusion Layer",
+          desc: "Weighted aggregation using gated risk scoring model",
+          color: "from-white/10"
+        },
+      ].map((step, i) => (
+        <div
+          key={i}
+          className={`p-6 rounded-xl border border-white/10 bg-gradient-to-b ${step.color} to-transparent`}
+        >
+          <div className="text-xs text-accent-cyan font-bold mb-2">
+            Stage {i + 1}
+          </div>
+          <h3 className="font-bold mb-2">{step.title}</h3>
+          <p className="text-white/60 text-sm">{step.desc}</p>
+        </div>
+      ))}
+
+    </div>
+
+  </div>
+</div>
+
+{/* PRIVACY LAYER */}
+<div className="mb-20 sm:mb-32">
+
+  <h2 className="text-2xl sm:text-4xl font-bold mb-8 sm:mb-12 flex items-center gap-4">
+    <span className="w-8 sm:w-12 h-1 bg-white" />
+    Privacy Preservation Mechanism
+  </h2>
+
+  <div className="glass-card p-6 sm:p-12 flex flex-col md:flex-row gap-10 items-center">
+
+    <div className="flex-1">
+      <h3 className="text-xl font-bold mb-4">Secure Federated Training</h3>
+
+      <ul className="space-y-4 text-sm text-white/70">
+
+        {[
+          "Local models trained on-device without raw data sharing",
+          "Differential privacy adds calibrated noise to gradients",
+          "Secure aggregation prevents reconstruction attacks",
+          "Only encrypted updates reach the global server"
+        ].map((item, i) => (
+          <li key={i} className="flex gap-3">
+            <span className="text-accent-purple">▹</span>
+            {item}
+          </li>
+        ))}
+
+      </ul>
+    </div>
+
+    <div className="flex-1 relative flex items-center justify-center">
+
+      <div className="w-40 h-40 rounded-full border border-dashed border-accent-purple/40 animate-spin-slow" />
+      <div className="absolute w-24 h-24 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
+        <Shield className="text-accent-purple" size={32} />
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+{/* PERFORMANCE DASHBOARD */}
+<div className="mb-20 sm:mb-32">
+
+  <h2 className="text-2xl sm:text-4xl font-bold mb-8 sm:mb-12 flex items-center gap-4">
+    <span className="w-8 sm:w-12 h-1 bg-accent-cyan" />
+    System Performance Metrics
+  </h2>
+
+  <div className="glass-card p-6 sm:p-12 grid grid-cols-1 sm:grid-cols-3 gap-6">
+
+    {[
+      {
+        label: "Detection Lead Time",
+        value: "79 days",
+        desc: "Early warning before benchmark onset"
+      },
+      {
+        label: "Confirmed Alert Lead",
+        value: "24 days",
+        desc: "High-confidence outbreak detection"
+      },
+      {
+        label: "Fusion Accuracy",
+        value: "94%+",
+        desc: "Cross-node weighted decision performance"
+      }
+    ].map((m, i) => (
+      <div key={i} className="p-6 rounded-xl border border-white/10 bg-white/5">
+
+        <p className="text-accent-cyan text-xs font-bold">{m.label}</p>
+        <h3 className="text-3xl font-bold mt-2">{m.value}</h3>
+        <p className="text-white/50 text-sm mt-2">{m.desc}</p>
+
+      </div>
+    ))}
+
+  </div>
+</div>
+
       </div>
     </main>
 
