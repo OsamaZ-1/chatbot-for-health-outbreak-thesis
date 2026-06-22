@@ -111,36 +111,110 @@ app.post(
   "/api/upload",
   authenticateAdmin,
   (req, res, next) => {
-    upload.array("files")(req, res, err => {
-      if (err) return res.status(400).json({ error: err.message });
+    upload.array("files")(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({
+          error: err.message,
+        });
+      }
+
       next();
     });
   },
   async (req, res) => {
-    const files = req.files as Express.Multer.File[];
-    if (!files?.length) return res.status(400).json({ error: "No files" });
+    try {
+      const files = req.files as Express.Multer.File[];
 
-    const results = [];
-    for (const file of files) {
-      try {
-        let text = "";
-        const ext = path.extname(file.originalname).toLowerCase();
-        if (ext === ".docx") {
-          const parsed = await mammoth.extractRawText({ buffer: file.buffer });
-          text = parsed.value;
-        } else {
-          text = file.buffer.toString("utf8");
-        }
-        if (!text.trim()) continue;
-
-        documentStore.push({ text, source: file.originalname });
-        indexedFiles.add(file.originalname);
-        results.push({ file: file.originalname, status: "success" });
-      } catch (e: any) {
-        results.push({ file: file.originalname, status: "error", message: e.message });
+      if (!files || files.length === 0) {
+        return res.status(400).json({
+          error: "No files uploaded",
+        });
       }
+
+      const results = [];
+
+      for (const file of files) {
+        try {
+          const ext = path.extname(file.originalname).toLowerCase();
+
+          let text = "";
+
+          switch (ext) {
+            case ".docx": {
+              const parsed = await mammoth.extractRawText({
+                buffer: file.buffer,
+              });
+
+              text = parsed.value;
+              break;
+            }
+
+            case ".txt":
+            case ".md": {
+              text = file.buffer.toString("utf8");
+              break;
+            }
+
+            default: {
+              results.push({
+                file: file.originalname,
+                status: "error",
+                message: `Unsupported file type: ${ext}`,
+              });
+
+              continue;
+            }
+          }
+
+          if (!text.trim()) {
+            results.push({
+              file: file.originalname,
+              status: "error",
+              message: "No text extracted",
+            });
+
+            continue;
+          }
+
+          // Remove previous version if it exists
+          documentStore = documentStore.filter(
+            (doc) => doc.source !== file.originalname
+          );
+
+          documentStore.push({
+            text,
+            source: file.originalname,
+          });
+
+          indexedFiles.add(file.originalname);
+
+          results.push({
+            file: file.originalname,
+            status: "success",
+          });
+        } catch (e: any) {
+          console.error(`Failed processing ${file.originalname}:`, e);
+
+          results.push({
+            file: file.originalname,
+            status: "error",
+            message: e.message,
+          });
+        }
+      }
+
+      return res.json({
+        message: "Knowledge synced.",
+        files: Array.from(indexedFiles),
+        results,
+      });
+    } catch (e: any) {
+      console.error("Upload route error:", e);
+
+      return res.status(500).json({
+        error: e.message || "Internal server error",
+      });
     }
-    res.json(results);
   }
 );
 
