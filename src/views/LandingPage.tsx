@@ -136,18 +136,18 @@ export default function LandingPage({ onStartChat }: { onStartChat: () => void }
           {[
             {
               icon: <Globe size={22} className="text-accent-cyan" />,
-              title: "Global Resilience",
-              desc: "Cross-border surveillance without raw data sharing.",
+              title: "Social Media Node",
+              desc: "Reddit-based signals processed using a DistilBERT classifier to detect outbreak-related discussion patterns.",
             },
             {
               icon: <Layers size={22} className="text-accent-purple" />,
-              title: "Multi-Source Fusion",
-              desc: "Clinical + social + environmental signals.",
+              title: "Search Engine Node",
+              desc: "Google COVID-19 search trends used to capture symptom-driven population-level interest signals.",
             },
             {
               icon: <Shield size={22} className="text-white" />,
-              title: "Privacy Clusters",
-              desc: "Anonymization via noise injection.",
+              title: "Hospital Node",
+              desc: "CDC emergency department data providing clinical validation and ground-truth outbreak indicators.",
             },
           ].map((card, i) => (
             <motion.div
@@ -174,66 +174,70 @@ export default function LandingPage({ onStartChat }: { onStartChat: () => void }
         </div>
 
         {/* ARCHITECTURE */}
-        <div id="architecture" className="mb-20 sm:mb-32">
+<div id="architecture" className="mb-20 sm:mb-32">
 
-          <h2 className="text-2xl sm:text-4xl font-bold mb-8 sm:mb-12 flex items-center gap-4">
-            <span className="w-8 sm:w-12 h-1 bg-accent-cyan" />
-            Architecture Overview
-          </h2>
+  <h2 className="text-2xl sm:text-4xl font-bold mb-8 sm:mb-12 flex items-center gap-4">
+    <span className="w-8 sm:w-12 h-1 bg-accent-cyan" />
+    Architecture Overview
+  </h2>
 
-          <div className="glass-card p-6 sm:p-12 flex flex-col md:flex-row gap-10 items-center">
+  <div className="glass-card p-6 sm:p-12 flex flex-col md:flex-row gap-10 items-center">
 
-            {/* LEFT */}
-            <div className="flex-1">
-              <h3 className="text-xl sm:text-2xl font-bold mb-3">
-                Federated Cycle
-              </h3>
+    {/* LEFT */}
+    <div className="flex-1">
+      <h3 className="text-xl sm:text-2xl font-bold mb-3">
+        Three-Node Surveillance Pipeline
+      </h3>
 
-              <p className="text-white/60 mb-6 sm:mb-8 text-sm">
-                Local training → encrypted gradients → global aggregation.
-              </p>
+      <p className="text-white/60 mb-6 sm:mb-8 text-sm">
+        Multi-source signals are processed locally, then fused securely at the global server.
+      </p>
 
-              <ul className="space-y-3 sm:space-y-4">
-                {[
-                  "Local Model Training",
-                  "Encrypted Upload",
-                  "Global Aggregation",
-                ].map((step, i) => (
-                  <li key={i} className="flex items-center gap-3 text-sm">
-                    <div className="w-5 h-5 rounded-full border border-accent-cyan flex items-center justify-center text-[10px] text-accent-cyan">
-                      {i + 1}
-                    </div>
-                    {step}
-                  </li>
-                ))}
-              </ul>
+      <ul className="space-y-3 sm:space-y-4">
+        {[
+          "Social Media Node (Reddit + DistilBERT classification)",
+          "Search Engine Node (Google COVID-19 search trends)",
+          "Hospital Node (CDC emergency department data)",
+        ].map((step, i) => (
+          <li key={i} className="flex items-center gap-3 text-sm">
+            <div className="w-5 h-5 rounded-full border border-accent-cyan flex items-center justify-center text-[10px] text-accent-cyan">
+              {i + 1}
             </div>
+            {step}
+          </li>
+        ))}
+      </ul>
+    </div>
 
-            {/* RIGHT VISUAL */}
-            <div className="flex-1 w-full max-w-sm aspect-square relative flex items-center justify-center">
+    {/* RIGHT VISUAL */}
+    <div className="flex-1 w-full max-w-sm aspect-square relative flex items-center justify-center">
 
-              <div className="absolute inset-0 border border-dashed border-accent-cyan/20 rounded-full animate-spin-slow" />
+      <div className="absolute inset-0 border border-dashed border-accent-cyan/20 rounded-full animate-spin-slow" />
 
-              <div className="w-20 sm:w-24 h-20 sm:h-24 bg-white/10 rounded-full flex items-center justify-center z-10">
-                <Cpu size={32} className="sm:size-[40px] text-accent-cyan" />
-              </div>
+      <div className="w-20 sm:w-24 h-20 sm:h-24 bg-white/10 rounded-full flex items-center justify-center z-10">
+        <Cpu size={32} className="sm:size-[40px] text-accent-cyan" />
+      </div>
 
-              {[0, 72, 144, 216, 288].map((angle, i) => (
-                <div
-                  key={i}
-                  className="absolute w-8 sm:w-10 h-8 sm:h-10 bg-white/5 rounded-lg border border-white/20 flex items-center justify-center"
-                  style={{
-                    transform: `rotate(${angle}deg) translate(120px)`,
-                  }}
-                >
-                  <Globe size={16} className="text-accent-purple opacity-60" />
-                </div>
-              ))}
-
-            </div>
-
-          </div>
+      {[
+        { angle: 0, label: "Social" },
+        { angle: 120, label: "Search" },
+        { angle: 240, label: "Hospital" },
+      ].map((node, i) => (
+        <div
+          key={i}
+          className="absolute w-10 sm:w-12 h-10 sm:h-12 bg-white/5 rounded-lg border border-white/20 flex items-center justify-center text-[10px] text-white/60"
+          style={{
+            transform: `rotate(${node.angle}deg) translate(120px) rotate(-${node.angle}deg)`,
+          }}
+        >
+          {node.label}
         </div>
+      ))}
+
+    </div>
+
+  </div>
+</div>
 
       </div>
     </main>
